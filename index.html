@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Using Constants | DriveWorks</title>
+    <style>
+        body { font-family: sans-serif; padding: 1em; margin: 0; }
+        p { margin: 1em 0; }
+        h3 { margin: 2em 0 1em; }
+        .output { text-align: left; border-collapse: collapse; }
+        .output th, .output td { padding: .5em; border: 2px solid #ccc; }
+        .output tr.highlight { color: blue; }
+    </style>
+</head>
+
+<body>
+
+    <div id="form-output">Loading...</div>
+
+    <h3>Constants</h3>
+    <table id="log-output" class="output">
+        <tr>
+            <th>Time</th>
+            <th>Name</th>
+            <th>Value</th>
+        </tr>
+    </table>
+
+    <script src="config.js"></script>
+    <script>
+        const GROUP_ALIAS = config.groupAlias;
+        const EXAMPLE_CONSTANT_NAME = config.constantName;
+        const formOutput = document.getElementById("form-output");
+        const logOutput = document.getElementById("log-output");
+
+        // Run on client load
+        async function dwClientLoaded() {
+            try {
+
+                // Create DriveWorks API client
+                const DW_CLIENT = new window.DriveWorksLiveClient(config.serverUrl);
+
+                // Login to group
+                await DW_CLIENT.loginGroup(GROUP_ALIAS);
+
+                // Create Specification
+                const specification = await DW_CLIENT.createSpecification(GROUP_ALIAS, config.projectName);
+
+                // WATCH Constant changes
+                // Note: Requires a Specification to be rendered to react on change
+                // This will trigger whenever a Constant's value is changed - by the Project or by the Web API.
+                specification.registerConstantValueChangedDelegate(data => processConstant(data));
+                formOutput.innerHTML = "";
+                await specification.render(formOutput);
+
+                // GET all Constant values
+                // - Constants will only be available if listed in DriveWorksConfigUser.xml - for security
+                // - For more information, see: https://docs.driveworkspro.com/Topic/IntegrationThemeSettings#Permissions
+                const constants = await DW_CLIENT.getSpecificationConstants(GROUP_ALIAS, specification.id);
+                if (constants && constants.length !== 0) {
+                    for (constant of constants) {
+                        processConstant(constant);
+                    }
+                }
+
+                // UPDATE Constant value
+                // - Constants MUST be set to canEdit="true" in DriveWorksConfigUser.xml
+                // - You MUST get the latest value of a Constant before driving a new value
+                await DW_CLIENT.getSpecificationConstantByName(GROUP_ALIAS, specification.id, EXAMPLE_CONSTANT_NAME);
+                await DW_CLIENT.updateConstantValue(GROUP_ALIAS, specification.id, EXAMPLE_CONSTANT_NAME, "New Value");
+
+            } catch (error) {
+                console.log(error);
+                formOutput.innerHTML = error;
+                formOutput.style.color = "red";
+            }
+        }
+
+        // EXAMPLE FUNCTION: Process Constant response object, output on screen.
+        function processConstant(constant) {
+
+            // Name of Constant - removing the common prefix (DWConstant) for easier reference
+            // Note: the keys differ between response from getSpecificationConstants and registerConstantValueChangedDelegate.
+            // This logic covers both potential keys.
+            const name = (constant.name || constant.constantName).replace("DWConstant", "");
+
+            // Value of Constant - cover both potential keys.
+            const value = constant.value || constant.constantValue;
+
+            // Create output element
+            const message = document.createElement("tr");
+
+            // Example: Detect specific Constant by name
+            switch (name) {
+
+                // Specific Constant name (set by config.js)
+                case EXAMPLE_CONSTANT_NAME:
+                    message.classList.add("highlight");
+                    break;
+
+                // All other Constants
+                default:
+                    break;
+            }
+
+            // Print Constant (with formatting)
+            const now = new Date;
+            message.innerHTML = `
+                <td>${now.toLocaleTimeString()}.${now.getMilliseconds()}</td>
+                <td>${name}</td>
+                <td>${value}</td>
+            `;
+            logOutput.appendChild(message);
+        }
+
+    </script>
+
+    <!-- Option A) Directly load Client Library -->
+    <!-- <script src="https://YOUR-THEME-SERVER.COM/DriveworksLiveIntegrationClient.min.js" onload="dwClientLoaded()"></script> -->
+
+    <!-- Option B) Inject Client Library dynamically from server url in config file -->
+    <script>
+        (function(doc, script) {
+            script = doc.createElement("script");
+            script.src = config.serverUrl + "/DriveWorksLiveIntegrationClient.min.js";
+            script.onload = () => dwClientLoaded(); // Custom local function run when client has loaded
+            doc.body.appendChild(script);
+        }(document));
+    </script>
+
+</body>
+</html>
