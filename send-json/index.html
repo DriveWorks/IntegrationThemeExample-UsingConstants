@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSON Transfer using Constants | DriveWorks</title>
+    <style>
+        body { font-family: sans-serif; padding: 1em; margin: 0; }
+        h3 { margin: 2em 0 1em; }
+        p { padding: 0; margin: 0 0 1em; }
+        hr { margin: 1em 0 1.5em 0; border: 0; border-top: 2px solid #ccc; }
+        pre { padding: 0 0 .5em; margin: 0; overflow: auto; }
+        code { display: inline-block; padding: .25em .5em; background: #eee; font-size: 16px; overflow-wrap: anywhere; }
+    </style>
+</head>
+
+<body>
+
+    <div id="log-output">Sending JSON data...</div>
+
+    <script src="../config.js"></script>
+    <script async>
+        const GROUP_ALIAS = config.groupAlias;
+        const EXAMPLE_CONSTANT_NAME = config.constantName;
+        const logOutput = document.getElementById("log-output");
+
+        // Run on client load
+        async function dwClientLoaded() {
+            try {
+
+                // Create DriveWorks API client
+                const DW_CLIENT = new window.DriveWorksLiveClient(config.serverUrl);
+
+                // Login to group
+                await DW_CLIENT.loginGroup(GROUP_ALIAS);
+
+                // Create Specification
+                const specification = await DW_CLIENT.startSpecification(GROUP_ALIAS, config.projectName);
+
+                // Example: Individual Data Points
+                // Tip - These could be collated from multiple sources & combined into a single JSON object for transfer
+                const name = "John Smith";
+                const age = 32;
+
+                // Create JSON object, in known format
+                const jsonObject = {
+                    "customer": {
+                        "name": name,
+                        "age": age,
+                    },
+                    "product": {
+                        "name": "Office Laptop",
+                        "sku": "OFF123",
+                        "data": {
+                            "price": "429.99",
+                            "currency": "GBP",
+                        }
+                    }
+                }
+
+                // Example: Add data to existing JSON object
+                jsonObject.orderId = "DW-123";
+
+                // Pass JSON data object as Constant value
+                // 1. Get latest Constant value before update [required]
+                // 2. Update Constant value
+                await DW_CLIENT.getSpecificationConstantByName(GROUP_ALIAS, specification.specificationId, EXAMPLE_CONSTANT_NAME);
+                await DW_CLIENT.updateConstantValue(GROUP_ALIAS, specification.specificationId, EXAMPLE_CONSTANT_NAME, JSON.stringify(jsonObject));
+
+                // Transition Specification (e.g. Save)
+                // 1. Get latest Transition data [required]
+                // 2. Invoke Transition
+                await DW_CLIENT.getSpecificationTransitionByName(GROUP_ALIAS, specification.specificationId, "Save");
+                await DW_CLIENT.invokeTransition(GROUP_ALIAS, specification.specificationId, "Save");
+
+                // Example - Show success message
+                handleSuccess(jsonObject);
+
+                // Example - Extract data within a DriveWorks Rule: "XPathJsonGet(DWConstantName, "customer.name")"
+
+            } catch (error) {
+                console.log(error);
+                logOutput.innerHTML = error;
+            }
+        }
+
+        // Show help & data passed
+        function handleSuccess(json) {
+            const prefixedConstantName = `DWConstant${EXAMPLE_CONSTANT_NAME}`;
+            logOutput.innerHTML = `
+                <p><strong>Data sent:</strong></p>
+                <pre>${JSON.stringify(json)}</pre>
+                <hr/>
+                <p>Data passed to '${EXAMPLE_CONSTANT_NAME}' as JSON string, and invoked the Transition "Save".</p>
+                <br/>
+                <p>Use <code>XPathJsonGet(${prefixedConstantName},[Path])</code> within your DriveWorks Rules to extract data points.</p>
+                <p>Read more about <a href="https://docs.driveworkspro.com/topic/XPathJsonGet" target="_blank">XPathJsonGet &#129109;</a></p>
+
+                <h3>Basic Examples:</h3>
+                <p><code>XPathJsonGet(${prefixedConstantName},"customer")</code> = "${JSON.stringify(json.customer)}"</p>
+                <p><code>XPathJsonGet(${prefixedConstantName},"customer.name")</code> = "${json.customer.name}"</p>
+                <p><code>XPathJsonGet(${prefixedConstantName},"product.data.price")</code> = "${json.product.data.price}"</p>
+            `;
+        }
+    </script>
+
+    <!-- Option A) Directly load Client Library -->
+    <!-- <script src="https://YOUR-THEME-SERVER.COM/DriveworksLiveIntegrationClient.min.js" onload="dwClientLoaded()"></script> -->
+
+    <!-- Option B) Inject Client Library dynamically from server url in config file -->
+    <script>
+        (function(doc, script) {
+            script = doc.createElement("script");
+            script.src = config.serverUrl + "/DriveWorksLiveIntegrationClient.min.js";
+            script.onload = () => dwClientLoaded(); // Custom local function run when client has loaded
+            doc.body.appendChild(script);
+        }(document));
+    </script>
+
+</body>
+</html>

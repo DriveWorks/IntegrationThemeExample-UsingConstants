@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Batch Drive Constants | DriveWorks</title>
+    <style>
+        body { font-family: sans-serif; padding: 1em; margin: 0; }
+        p { margin: 0 0 1em; }
+    </style>
+</head>
+
+<body>
+
+    <p data-help hidden>Attempted to update Constant values. <strong>Check console (F12) for additional information/errors.</strong></p>
+
+    <div id="form-output">Loading...</div>
+
+    <script src="../config.js"></script>
+    <script>
+        const formOutput = document.getElementById("form-output");
+        const constants = [
+            {
+                name: "ConstantOne",
+                value: "123",
+            },
+            {
+                name: "ConstantTwo",
+                value: "ABC",
+            },
+            {
+                name: "ConstantThree",
+                value: "Hello World",
+            },
+        ];
+        let DW_CLIENT;
+        let specificationId;
+
+        // Run on client load
+        async function dwClientLoaded() {
+            try {
+                DW_CLIENT = new window.DriveWorksLiveClient(config.serverUrl);
+                const session = await DW_CLIENT.loginGroup(config.groupAlias);
+
+                // Create Specification
+                const specification = await DW_CLIENT.createSpecification(config.groupAlias, config.projectName);
+                specificationId = specification.id;
+
+                // Render
+                formOutput.innerHTML = "";
+                await specification.render(formOutput);
+
+                // Set Constant values
+                await setConstantValues();
+
+                // (Optional) Transition Specification - to store input
+                // await DW_CLIENT.getSpecificationTransitionByName(config.groupAlias, specificationId, "Save");
+                // await DW_CLIENT.invokeTransition(config.groupAlias, specificationId, "Save");
+
+                // (Example) Show help message
+                document.querySelector("[data-help]").removeAttribute("hidden");
+            } catch (error) {
+                console.log(error);
+                formOutput.innerHTML = error;
+            }
+        }
+
+        // Set values
+        async function setConstantValues() {
+            const values = constants.map((constant) => {
+                return setConstant(constant.name, constant.value);
+            });
+
+            await Promise.all(values);
+        }
+
+        // Set Constant value
+        async function setConstant(name, value) {
+            try {
+                await DW_CLIENT.getSpecificationConstantByName(config.groupAlias, specificationId, name);
+                await DW_CLIENT.updateConstantValue(config.groupAlias, specificationId, name, value);
+            } catch(error) {
+                console.log(error);
+            }
+        }
+    </script>
+
+    <!-- Option A) Directly load Client Library -->
+    <!-- <script src="https://YOUR-THEME-SERVER.COM/DriveworksLiveIntegrationClient.min.js" onload="dwClientLoaded()"></script> -->
+
+    <!-- Option B) Inject Client Library dynamically from server url in config file -->
+    <script>
+        (function(doc, script) {
+            script = doc.createElement("script");
+            script.src = config.serverUrl + "/DriveWorksLiveIntegrationClient.min.js";
+            script.onload = () => dwClientLoaded(); // Custom local function run when client has loaded
+            doc.body.appendChild(script);
+        }(document));
+    </script>
+
+</body>
+</html>
