@@ -52,6 +52,8 @@
                 // Note: Requires a Specification to be rendered to react on change
                 // This will trigger whenever a Constant's value is changed - by the Project or by the Web API.
                 specification.registerConstantValueChangedDelegate(data => processConstant(data));
+
+                // Render Specification
                 formOutput.innerHTML = "";
                 await specification.render(formOutput);
 
